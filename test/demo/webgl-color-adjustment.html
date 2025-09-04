@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>OpenSeadragon WebGL Color Adjustment Demo</title>
+
+    <script
+      type="text/javascript"
+      src="/build/openseadragon/openseadragon.js"
+    ></script>
+
+    <!-- JQuery -->
+    <script src="/test/lib/jquery-1.9.1.min.js"></script>
+    <link
+      rel="stylesheet"
+      href="/test/lib/jquery-ui-1.10.2/css/smoothness/jquery-ui-1.10.2.min.css"
+    />
+    <script src="/test/lib/jquery-ui-1.10.2/js/jquery-ui-1.10.2.min.js"></script>
+
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        margin: 0;
+        padding: 20px;
+        background-color: #f5f5f5;
+      }
+
+      .container {
+        max-width: 1200px;
+        margin: 0 auto;
+        background-color: white;
+        border-radius: 8px;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        overflow: hidden;
+      }
+
+      .header {
+        background-color: #2c3e50;
+        color: white;
+        padding: 20px;
+        text-align: center;
+      }
+
+      .header h1 {
+        margin: 0;
+        font-size: 24px;
+      }
+
+      .content {
+        display: flex;
+        min-height: 600px;
+      }
+
+      .viewer-container {
+        flex: 2;
+        position: relative;
+        background-color: #000;
+      }
+
+      #openseadragon {
+        width: 100%;
+        height: 600px;
+      }
+
+      .controls {
+        flex: 1;
+        padding: 20px;
+        background-color: #ecf0f1;
+        border-left: 1px solid #bdc3c7;
+      }
+
+      .control-group {
+        margin-bottom: 25px;
+      }
+
+      .control-group h3 {
+        margin: 0 0 15px 0;
+        color: #2c3e50;
+        font-size: 16px;
+        border-bottom: 2px solid #3498db;
+        padding-bottom: 5px;
+      }
+
+      .control-item {
+        margin-bottom: 15px;
+      }
+
+      .control-item label {
+        display: block;
+        margin-bottom: 5px;
+        font-weight: bold;
+        color: #34495e;
+      }
+
+      .slider-container {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+
+      .slider {
+        flex: 1;
+        height: 6px;
+      }
+
+      .value-display {
+        min-width: 60px;
+        text-align: center;
+        background-color: white;
+        border: 1px solid #bdc3c7;
+        border-radius: 4px;
+        padding: 5px;
+        font-family: monospace;
+      }
+
+      .button-group {
+        display: flex;
+        gap: 10px;
+        margin-top: 20px;
+      }
+
+      .btn {
+        padding: 10px 15px;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-weight: bold;
+        transition: background-color 0.3s;
+      }
+
+      .btn-primary {
+        background-color: #3498db;
+        color: white;
+      }
+
+      .btn-primary:hover {
+        background-color: #2980b9;
+      }
+
+      .btn-secondary {
+        background-color: #95a5a6;
+        color: white;
+      }
+
+      .btn-secondary:hover {
+        background-color: #7f8c8d;
+      }
+
+      .image-selector {
+        margin-bottom: 20px;
+      }
+
+      .image-selector select {
+        width: 100%;
+        padding: 8px;
+        border: 1px solid #bdc3c7;
+        border-radius: 4px;
+        background-color: white;
+      }
+
+      .info-panel {
+        background-color: #d5dbdb;
+        padding: 15px;
+        border-radius: 4px;
+        margin-top: 20px;
+      }
+
+      .info-panel h4 {
+        margin: 0 0 10px 0;
+        color: #2c3e50;
+      }
+
+      .info-panel p {
+        margin: 5px 0;
+        font-size: 14px;
+        color: #34495e;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="header">
+        <h1>OpenSeadragon WebGL Color Adjustment Demo</h1>
+        <p>Real-time color adjustment using WebGL shaders</p>
+      </div>
+
+      <div class="content">
+        <div class="viewer-container">
+          <div id="openseadragon"></div>
+        </div>
+
+        <div class="controls">
+          <div class="control-group">
+            <h3>Image Selection</h3>
+            <div class="image-selector">
+              <select id="image-select">
+                <option
+                  value="https://openseadragon.github.io/example-images/highsmith/highsmith.dzi"
+                >
+                  Highsmith Building
+                </option>
+                <option value="../../data/testpattern.dzi">Test Pattern</option>
+                <option value="../../data/iiif_2_0_sizes/info.json">
+                  Leaves
+                </option>
+                <option
+                  value="https://openseadragon.github.io/example-images/duomo/duomo.dzi"
+                >
+                  Duomo
+                </option>
+              </select>
+            </div>
+          </div>
+
+          <div class="control-group">
+            <h3>Color Adjustments</h3>
+
+            <div class="control-item">
+              <label for="gamma-slider">Gamma (0.0 - 5.0)</label>
+              <div class="slider-container">
+                <div id="gamma-slider" class="slider"></div>
+                <div id="gamma-value" class="value-display">1.00</div>
+              </div>
+            </div>
+
+            <div class="control-item">
+              <label for="contrast-slider">Contrast (-100 - 100)</label>
+              <div class="slider-container">
+                <div id="contrast-slider" class="slider"></div>
+                <div id="contrast-value" class="value-display">0</div>
+              </div>
+            </div>
+
+            <div class="control-item">
+              <label for="brightness-slider">Brightness (-255 - 255)</label>
+              <div class="slider-container">
+                <div id="brightness-slider" class="slider"></div>
+                <div id="brightness-value" class="value-display">0</div>
+              </div>
+            </div>
+
+            <div class="control-item">
+              <label for="r-slider">Red Channel (-100 - 100)</label>
+              <div class="slider-container">
+                <div id="r-slider" class="slider"></div>
+                <div id="r-value" class="value-display">0</div>
+              </div>
+            </div>
+
+            <div class="control-item">
+              <label for="g-slider">Green Channel (-100 - 100)</label>
+              <div class="slider-container">
+                <div id="g-slider" class="slider"></div>
+                <div id="g-value" class="value-display">0</div>
+              </div>
+            </div>
+
+            <div class="control-item">
+              <label for="b-slider">Blue Channel (-100 - 100)</label>
+              <div class="slider-container">
+                <div id="b-slider" class="slider"></div>
+                <div id="b-value" class="value-display">0</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="button-group">
+            <button id="reset-btn" class="btn btn-secondary">Reset</button>
+            <button id="preset-btn" class="btn btn-primary">
+              Apply Preset
+            </button>
+          </div>
+
+          <div class="info-panel">
+            <h4>Instructions</h4>
+            <p><strong>Gamma:</strong> 0.0 to 5.0 (gamma correction)</p>
+            <p><strong>Contrast:</strong> -100 to 100 (contrast adjustment)</p>
+            <p>
+              <strong>Brightness:</strong> -255 to 255 (brightness adjustment)
+            </p>
+            <p>
+              <strong>Red/Green/Blue:</strong> -100 to 100 (channel adjustment)
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script src="webgl-color-adjustment.js"></script>
+  </body>
+</html>

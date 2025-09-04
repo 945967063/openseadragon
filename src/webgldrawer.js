@@ -33,33 +33,33 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-(function( $ ){
+(function ($) {
 
     const OpenSeadragon = $; // alias for JSDoc
 
-   /**
-    * @class OpenSeadragon.WebGLDrawer
-    * @classdesc Default implementation of WebGLDrawer for an {@link OpenSeadragon.Viewer}. The WebGLDrawer
-    * defines its own data type that ensures textures are correctly loaded to and deleted from the GPU memory.
-    * The drawer utilizes a context-dependent two pass drawing pipeline. For the first pass, tile composition
-    * for a given TiledImage is always done using a canvas with a WebGL context. This allows tiles to be stitched
-    * together without seams or artifacts, without requiring a tile source with overlap. If overlap is present,
-    * overlapping pixels are discarded. The second pass copies all pixel data from the WebGL context onto an output
-    * canvas with a Context2d context. This allows applications to have access to pixel data and other functionality
-    * provided by Context2d, regardless of whether the CanvasDrawer or the WebGLDrawer is used. Certain options,
-    * including compositeOperation, clip, croppingPolygons, and debugMode are implemented using Context2d operations;
-    * in these scenarios, each TiledImage is drawn onto the output canvas immediately after the tile composition step
-    * (pass 1). Otherwise, for efficiency, all TiledImages are copied over to the output canvas at once, after all
-    * tiles have been composited for all images.
-    * @param {Object} options - Options for this Drawer.
-    * @param {OpenSeadragon.Viewer} options.viewer - The Viewer that owns this Drawer.
-    * @param {OpenSeadragon.Viewport} options.viewport - Reference to Viewer viewport.
-    * @param {Element} options.element - Parent element.
-    * @param {Number} [options.debugGridColor] - See debugGridColor in {@link OpenSeadragon.Options} for details.
-    */
-    OpenSeadragon.WebGLDrawer = class WebGLDrawer extends OpenSeadragon.DrawerBase{
-        constructor(options){
-           super(options);
+    /**
+     * @class OpenSeadragon.WebGLDrawer
+     * @classdesc Default implementation of WebGLDrawer for an {@link OpenSeadragon.Viewer}. The WebGLDrawer
+     * defines its own data type that ensures textures are correctly loaded to and deleted from the GPU memory.
+     * The drawer utilizes a context-dependent two pass drawing pipeline. For the first pass, tile composition
+     * for a given TiledImage is always done using a canvas with a WebGL context. This allows tiles to be stitched
+     * together without seams or artifacts, without requiring a tile source with overlap. If overlap is present,
+     * overlapping pixels are discarded. The second pass copies all pixel data from the WebGL context onto an output
+     * canvas with a Context2d context. This allows applications to have access to pixel data and other functionality
+     * provided by Context2d, regardless of whether the CanvasDrawer or the WebGLDrawer is used. Certain options,
+     * including compositeOperation, clip, croppingPolygons, and debugMode are implemented using Context2d operations;
+     * in these scenarios, each TiledImage is drawn onto the output canvas immediately after the tile composition step
+     * (pass 1). Otherwise, for efficiency, all TiledImages are copied over to the output canvas at once, after all
+     * tiles have been composited for all images.
+     * @param {Object} options - Options for this Drawer.
+     * @param {OpenSeadragon.Viewer} options.viewer - The Viewer that owns this Drawer.
+     * @param {OpenSeadragon.Viewport} options.viewport - Reference to Viewer viewport.
+     * @param {Element} options.element - Parent element.
+     * @param {Number} [options.debugGridColor] - See debugGridColor in {@link OpenSeadragon.Options} for details.
+     */
+    OpenSeadragon.WebGLDrawer = class WebGLDrawer extends OpenSeadragon.DrawerBase {
+        constructor(options) {
+            super(options);
 
             /**
              * The HTML element (canvas) that this drawer uses for drawing
@@ -89,6 +89,16 @@
             this._backupCanvasDrawer = null;
 
             this._imageSmoothingEnabled = true; // will be updated by setImageSmoothingEnabled
+
+            // Color adjustment properties with default values
+            this._colorAdjustments = {
+                gamma: 1.0,         // 0.0 to 5.0
+                contrast: 0.0,      // -100 to 100
+                brightness: 0.0,    // -255 to 255
+                r: 0.0,            // -100 to 100 (red channel adjustment)
+                g: 0.0,            // -100 to 100 (green channel adjustment)
+                b: 0.0             // -100 to 100 (blue channel adjustment)
+            };
 
             // Reject listening for the tile-drawing and tile-drawn events, which this drawer does not fire
             this.viewer.rejectEventHandler("tile-drawn", "The WebGLDrawer does not raise the tile-drawn event");
@@ -120,8 +130,8 @@
         /**
         * Clean up the renderer, removing all resources
         */
-        destroy(){
-            if(this._destroyed){
+        destroy() {
+            if (this._destroyed) {
                 return;
             }
             // clear all resources used by the renderer, geometries, textures etc
@@ -152,20 +162,20 @@
             this._outputCanvas = this._outputContext = null;
 
             const ext = gl.getExtension('WEBGL_lose_context');
-            if(ext){
+            if (ext) {
                 ext.loseContext();
             }
 
             // set our webgl context reference to null to enable garbage collection
             this._gl = null;
 
-            if(this._backupCanvasDrawer){
+            if (this._backupCanvasDrawer) {
                 this._backupCanvasDrawer.destroy();
                 this._backupCanvasDrawer = null;
             }
 
             this.container.removeChild(this.canvas);
-            if(this.viewer.drawer === this){
+            if (this.viewer.drawer === this) {
                 this.viewer.drawer = null;
             }
 
@@ -180,7 +190,7 @@
         *
         * @returns {Boolean} true
         */
-        canRotate(){
+        canRotate() {
             return true;
         }
 
@@ -188,22 +198,22 @@
         /**
         * @returns {Boolean} true if canvas and webgl are supported
         */
-        static isSupported(){
-            const canvasElement = document.createElement( 'canvas' );
-            const webglContext = $.isFunction( canvasElement.getContext ) &&
-                        canvasElement.getContext( 'webgl' );
+        static isSupported() {
+            const canvasElement = document.createElement('canvas');
+            const webglContext = $.isFunction(canvasElement.getContext) &&
+                canvasElement.getContext('webgl');
             const ext = webglContext && webglContext.getExtension('WEBGL_lose_context');
-            if(ext){
+            if (ext) {
                 ext.loseContext();
             }
-            return !!( webglContext );
+            return !!(webglContext);
         }
 
         /**
          *
          * @returns {string} 'webgl'
          */
-        getType(){
+        getType() {
             return 'webgl';
         }
 
@@ -222,7 +232,7 @@
         * @private
         * @returns {Element} the canvas to draw into
         */
-        _createDrawingElement(){
+        _createDrawingElement() {
             const canvas = $.makeNeutralElement("canvas");
             const viewportSize = this._calculateCanvasSize();
             canvas.width = viewportSize.x;
@@ -236,9 +246,9 @@
          * @private
          * @returns {CanvasDrawer}
          */
-        _getBackupCanvasDrawer(){
-            if(!this._backupCanvasDrawer){
-                this._backupCanvasDrawer = this.viewer.requestDrawer('canvas', {mainDrawer: false});
+        _getBackupCanvasDrawer() {
+            if (!this._backupCanvasDrawer) {
+                this._backupCanvasDrawer = this.viewer.requestDrawer('canvas', { mainDrawer: false });
                 this._backupCanvasDrawer.canvas.style.setProperty('visibility', 'hidden');
                 this._backupCanvasDrawer.getSupportedDataFormats = () => this._supportedFormats;
                 this._backupCanvasDrawer.getDataToDraw = this.getDataToDraw.bind(this);
@@ -251,7 +261,7 @@
         *
         * @param {Array} tiledImages Array of TiledImage objects to draw
         */
-        draw(tiledImages){
+        draw(tiledImages) {
             const gl = this._gl;
             const bounds = this.viewport.getBoundsNoRotateWithMargins(true);
             const view = {
@@ -277,11 +287,11 @@
             let renderingBufferHasImageData = false;
 
             //iterate over tiled images and draw each one using a two-pass rendering pipeline if needed
-            tiledImages.forEach( (tiledImage, tiledImageIndex) => {
+            tiledImages.forEach((tiledImage, tiledImageIndex) => {
 
-                if(tiledImage.isTainted()){
+                if (tiledImage.isTainted()) {
                     // first, draw any data left in the rendering buffer onto the output canvas
-                    if(renderingBufferHasImageData){
+                    if (renderingBufferHasImageData) {
                         this._outputContext.drawImage(this._renderingCanvas, 0, 0);
                         // clear the buffer
                         gl.bindFramebuffer(gl.FRAMEBUFFER, null);
@@ -297,29 +307,31 @@
                 } else {
                     const tilesToDraw = tiledImage.getTilesToDraw();
 
-                    if ( tiledImage.placeholderFillStyle && tiledImage._hasOpaqueTile === false ) {
+                    if (tiledImage.placeholderFillStyle && tiledImage._hasOpaqueTile === false) {
                         this._drawPlaceholder(tiledImage);
                     }
 
-                    if(tilesToDraw.length === 0 || tiledImage.getOpacity() === 0){
+                    if (tilesToDraw.length === 0 || tiledImage.getOpacity() === 0) {
                         return;
                     }
                     const firstTile = tilesToDraw[0];
 
-                    const useContext2dPipeline = ( tiledImage.compositeOperation ||
+                    const useContext2dPipeline = (tiledImage.compositeOperation ||
                         this.viewer.compositeOperation ||
                         tiledImage._clip ||
                         tiledImage._croppingPolygons ||
                         tiledImage.debugMode
                     );
 
-                    const useTwoPassRendering = useContext2dPipeline || (tiledImage.opacity < 1) || firstTile.tile.hasTransparency;
+                    // Check if color adjustments are applied (either on tiledImage or drawer level)
+                    const hasColorAdjustments = this._hasColorAdjustments(tiledImage);
+                    const useTwoPassRendering = useContext2dPipeline || (tiledImage.opacity < 1) || firstTile.tile.hasTransparency || hasColorAdjustments;
 
                     // using the context2d pipeline requires a clean rendering (back) buffer to start
-                    if(useContext2dPipeline){
+                    if (useContext2dPipeline) {
                         // if the rendering buffer has image data currently, write it to the output canvas now and clear it
 
-                        if(renderingBufferHasImageData){
+                        if (renderingBufferHasImageData) {
                             this._outputContext.drawImage(this._renderingCanvas, 0, 0);
                         }
 
@@ -332,7 +344,7 @@
                     gl.useProgram(this._firstPass.shaderProgram);
 
                     // bind to the framebuffer for render-to-texture if using two-pass rendering, otherwise back buffer (null)
-                    if(useTwoPassRendering){
+                    if (useTwoPassRendering) {
                         gl.bindFramebuffer(gl.FRAMEBUFFER, this._glFrameBuffer);
                         // clear the buffer to draw a new image
                         gl.clear(gl.COLOR_BUFFER_BIT);
@@ -345,7 +357,7 @@
 
                     const imageRotation = tiledImage.getRotation(true);
                     // if needed, handle the tiledImage being rotated
-                    if( imageRotation % 360 !== 0){
+                    if (imageRotation % 360 !== 0) {
                         const imageRotationMatrix = $.Mat3.makeRotation(-imageRotation * Math.PI / 180);
                         const imageCenter = tiledImage.getBoundsNoRotate(true).getCenter();
                         const t1 = $.Mat3.makeTranslation(imageCenter.x, imageCenter.y);
@@ -357,14 +369,14 @@
                     }
 
                     const maxTextures = this._gl.getParameter(this._gl.MAX_TEXTURE_IMAGE_UNITS);
-                    if(maxTextures <= 0){
+                    if (maxTextures <= 0) {
                         // This can apparently happen on some systems if too many WebGL contexts have been created
                         // in which case maxTextures can be null, leading to out of bounds errors with the array.
                         // For example, when viewers were created and not destroyed in the test suite, this error
                         // occurred in the TravisCI tests, though it did not happen when testing locally either in
                         // a browser or on the command line via grunt test.
 
-                        throw(new Error(`WegGL error: bad value for gl parameter MAX_TEXTURE_IMAGE_UNITS (${maxTextures}). This could happen
+                        throw (new Error(`WegGL error: bad value for gl parameter MAX_TEXTURE_IMAGE_UNITS (${maxTextures}). This could happen
                         if too many contexts have been created and not released, or there is another problem with the graphics card.`));
                     }
 
@@ -374,10 +386,10 @@
                     const opacityArray = new Array(maxTextures);
 
                     // iterate over tiles and add data for each one to the buffers
-                    for(let tileIndex = 0; tileIndex < tilesToDraw.length; tileIndex++){
+                    for (let tileIndex = 0; tileIndex < tilesToDraw.length; tileIndex++) {
                         const tile = tilesToDraw[tileIndex].tile;
                         const indexInDrawArray = tileIndex % maxTextures;
-                        const numTilesToDraw =  indexInDrawArray + 1;
+                        const numTilesToDraw = indexInDrawArray + 1;
                         const textureInfo = this.getDataToDraw(tile);
 
                         if (textureInfo && textureInfo.texture) {
@@ -389,11 +401,11 @@
                         //   internalCacheCreate(..) already logged an error.
                         // }
 
-                        if( (numTilesToDraw === maxTextures) || (tileIndex === tilesToDraw.length - 1)){
+                        if ((numTilesToDraw === maxTextures) || (tileIndex === tilesToDraw.length - 1)) {
                             // We've filled up the buffers: time to draw this set of tiles
 
                             // bind each tile's texture to the appropriate gl.TEXTURE#
-                            for(let i = 0; i <= numTilesToDraw; i++){
+                            for (let i = 0; i <= numTilesToDraw; i++) {
                                 gl.activeTexture(gl.TEXTURE0 + i);
                                 gl.bindTexture(gl.TEXTURE_2D, textureDataArray[i]);
                             }
@@ -403,7 +415,7 @@
                             gl.bufferData(gl.ARRAY_BUFFER, texturePositionArray, gl.DYNAMIC_DRAW);
 
                             // set the transform matrix uniform for each tile
-                            matrixArray.forEach( (matrix, index) => {
+                            matrixArray.forEach((matrix, index) => {
                                 gl.uniformMatrix3fv(this._firstPass.uTransformMatrices[index], false, matrix);
                             });
                             // set the opacity uniform for each tile
@@ -420,11 +432,11 @@
                             gl.vertexAttribPointer(this._firstPass.aIndex, 1, gl.FLOAT, false, 0, 0);
 
                             // Draw! 6 vertices per tile (2 triangles per rectangle)
-                            gl.drawArrays(gl.TRIANGLES, 0, 6 * numTilesToDraw );
+                            gl.drawArrays(gl.TRIANGLES, 0, 6 * numTilesToDraw);
                         }
                     }
 
-                    if(useTwoPassRendering){
+                    if (useTwoPassRendering) {
                         // Second rendering pass: Render the tiled image from the framebuffer into the back buffer
                         gl.useProgram(this._secondPass.shaderProgram);
 
@@ -437,6 +449,15 @@
 
                         // set opacity to the value for the current tiledImage
                         this._gl.uniform1f(this._secondPass.uOpacityMultiplier, tiledImage.opacity);
+
+                        // set color adjustment uniforms
+                        const colorAdjustments = tiledImage._colorAdjustments || this._colorAdjustments;
+                        this._gl.uniform1f(this._secondPass.uGamma, colorAdjustments.gamma);
+                        this._gl.uniform1f(this._secondPass.uContrast, colorAdjustments.contrast);
+                        this._gl.uniform1f(this._secondPass.uBrightness, colorAdjustments.brightness);
+                        this._gl.uniform1f(this._secondPass.uR, colorAdjustments.r);
+                        this._gl.uniform1f(this._secondPass.uG, colorAdjustments.g);
+                        this._gl.uniform1f(this._secondPass.uB, colorAdjustments.b);
 
                         // bind buffers and set attributes before calling gl.drawArrays
                         gl.bindBuffer(gl.ARRAY_BUFFER, this._secondPass.bufferTexturePosition);
@@ -451,7 +472,7 @@
 
                     renderingBufferHasImageData = true;
 
-                    if(useContext2dPipeline){
+                    if (useContext2dPipeline) {
                         // draw from the rendering canvas onto the output canvas, clipping/cropping if needed.
                         this._applyContext2dPipeline(tiledImage, tilesToDraw, tiledImageIndex);
                         renderingBufferHasImageData = false;
@@ -461,14 +482,14 @@
                     }
 
                     // after drawing the first TiledImage, fire the tiled-image-drawn event (for testing)
-                    if(tiledImageIndex === 0){
-                        this._raiseTiledImageDrawnEvent(tiledImage, tilesToDraw.map(info=>info.tile));
+                    if (tiledImageIndex === 0) {
+                        this._raiseTiledImageDrawnEvent(tiledImage, tilesToDraw.map(info => info.tile));
                     }
                 }
 
             });
 
-            if(renderingBufferHasImageData){
+            if (renderingBufferHasImageData) {
                 this._outputContext.drawImage(this._renderingCanvas, 0, 0);
             }
 
@@ -479,8 +500,8 @@
         * Sets whether image smoothing is enabled or disabled
         * @param {Boolean} enabled If true, uses gl.LINEAR as the TEXTURE_MIN_FILTER and TEXTURE_MAX_FILTER, otherwise gl.NEAREST.
         */
-        setImageSmoothingEnabled(enabled){
-            if( this._imageSmoothingEnabled !== enabled ){
+        setImageSmoothingEnabled(enabled) {
+            if (this._imageSmoothingEnabled !== enabled) {
                 this._imageSmoothingEnabled = enabled;
                 this.setInternalCacheNeedsRefresh();
                 this.viewer.forceRedraw();
@@ -488,10 +509,128 @@
         }
 
         /**
+         * Sets color adjustment parameters for all images
+         * @param {Object} adjustments - Color adjustment parameters
+         * @param {Number} [adjustments.gamma=1] - Gamma correction (0.0 to 5.0)
+         * @param {Number} [adjustments.contrast=0] - Contrast adjustment (-100 to 100)
+         * @param {Number} [adjustments.brightness=0] - Brightness adjustment (-255 to 255)
+         * @param {Number} [adjustments.r=0] - Red channel adjustment (-100 to 100)
+         * @param {Number} [adjustments.g=0] - Green channel adjustment (-100 to 100)
+         * @param {Number} [adjustments.b=0] - Blue channel adjustment (-100 to 100)
+         */
+        setColorAdjustments(adjustments) {
+            let changed = false;
+
+            if (adjustments.gamma !== undefined && adjustments.gamma !== this._colorAdjustments.gamma) {
+                if (adjustments.gamma < 0 || adjustments.gamma > 5) {
+                    throw new Error("Gamma adjustment must be between 0 and 5.");
+                }
+                this._colorAdjustments.gamma = adjustments.gamma;
+                changed = true;
+            }
+
+            if (adjustments.contrast !== undefined && adjustments.contrast !== this._colorAdjustments.contrast) {
+                if (adjustments.contrast < -100 || adjustments.contrast > 100) {
+                    throw new Error("Contrast adjustment must be between -100 and 100.");
+                }
+                this._colorAdjustments.contrast = adjustments.contrast;
+                changed = true;
+            }
+
+            if (adjustments.brightness !== undefined && adjustments.brightness !== this._colorAdjustments.brightness) {
+                if (adjustments.brightness < -255 || adjustments.brightness > 255) {
+                    throw new Error("Brightness adjustment must be between -255 and 255.");
+                }
+                this._colorAdjustments.brightness = adjustments.brightness;
+                changed = true;
+            }
+
+            if (adjustments.r !== undefined && adjustments.r !== this._colorAdjustments.r) {
+                if (adjustments.r < -100 || adjustments.r > 100) {
+                    throw new Error("Red channel adjustment must be between -100 and 100.");
+                }
+                this._colorAdjustments.r = adjustments.r;
+                changed = true;
+            }
+
+            if (adjustments.g !== undefined && adjustments.g !== this._colorAdjustments.g) {
+                if (adjustments.g < -100 || adjustments.g > 100) {
+                    throw new Error("Green channel adjustment must be between -100 and 100.");
+                }
+                this._colorAdjustments.g = adjustments.g;
+                changed = true;
+            }
+
+            if (adjustments.b !== undefined && adjustments.b !== this._colorAdjustments.b) {
+                if (adjustments.b < -100 || adjustments.b > 100) {
+                    throw new Error("Blue channel adjustment must be between -100 and 100.");
+                }
+                this._colorAdjustments.b = adjustments.b;
+                changed = true;
+            }
+
+            if (changed) {
+                this.viewer.forceRedraw();
+
+                // Sync color adjustments to navigator if it exists
+                this._syncNavigatorColorAdjustments();
+            }
+        }
+
+        /**
+         * Gets current color adjustment parameters
+         * @returns {Object} Current color adjustment parameters
+         */
+        getColorAdjustments() {
+            return Object.assign({}, this._colorAdjustments);
+        }
+
+        /**
+         * Resets color adjustments to default values
+         */
+        resetColorAdjustments() {
+            this.setColorAdjustments({
+                gamma: 1.0,
+                contrast: 0.0,
+                brightness: 0.0,
+                r: 0.0,
+                g: 0.0,
+                b: 0.0
+            });
+        }
+
+        /**
+         * Check if color adjustments are applied (non-default values)
+         * @private
+         * @param {OpenSeadragon.TiledImage} tiledImage - The tiled image to check
+         * @returns {Boolean} True if color adjustments are applied
+         */
+        _hasColorAdjustments(tiledImage) {
+            const adjustments = tiledImage._colorAdjustments || this._colorAdjustments;
+            return adjustments.gamma !== 1.0 ||
+                adjustments.contrast !== 0.0 ||
+                adjustments.brightness !== 0.0 ||
+                adjustments.r !== 0.0 ||
+                adjustments.g !== 0.0 ||
+                adjustments.b !== 0.0;
+        }
+
+        /**
+         * Sync color adjustments to navigator
+         * @private
+         */
+        _syncNavigatorColorAdjustments() {
+            if (this.viewer.navigator && this.viewer.navigator.drawer &&
+                this.viewer.navigator.drawer.setColorAdjustments) {
+                this.viewer.navigator.drawer.setColorAdjustments(this._colorAdjustments);
+            }
+        }
+
+        /**
         * Draw a rect onto the output canvas for debugging purposes
         * @param {OpenSeadragon.Rect} rect
         */
-        drawDebuggingRect(rect){
+        drawDebuggingRect(rect) {
             const context = this._outputContext;
             context.save();
             context.lineWidth = 2 * $.pixelDensityRatio;
@@ -515,13 +654,13 @@
         * @param {OpenSeadragon.TiledImage} tiledImage - the tiledImage to draw
         * @param {Array} tilesToDraw - array of objects containing tiles that were drawn
         */
-        _applyContext2dPipeline(tiledImage, tilesToDraw, tiledImageIndex){
+        _applyContext2dPipeline(tiledImage, tilesToDraw, tiledImageIndex) {
             // composite onto the output canvas, clipping if necessary
             this._outputContext.save();
 
             // set composite operation; ignore for first image drawn
             this._outputContext.globalCompositeOperation = tiledImageIndex === 0 ? null : tiledImage.compositeOperation || this.viewer.compositeOperation;
-            if(tiledImage._croppingPolygons || tiledImage._clip){
+            if (tiledImage._croppingPolygons || tiledImage._clip) {
                 this._renderToClippingCanvas(tiledImage);
                 this._outputContext.drawImage(this._clippingCanvas, 0, 0);
 
@@ -529,13 +668,13 @@
                 this._outputContext.drawImage(this._renderingCanvas, 0, 0);
             }
             this._outputContext.restore();
-            if(tiledImage.debugMode){
+            if (tiledImage.debugMode) {
                 const flipped = this.viewer.viewport.getFlip();
-                if(flipped){
+                if (flipped) {
                     this._flip();
                 }
                 this._drawDebugInfo(tilesToDraw, tiledImage, flipped);
-                if(flipped){
+                if (flipped) {
                     this._flip();
                 }
             }
@@ -544,7 +683,7 @@
         }
 
         // private
-        _getTileData(tile, tiledImage, textureInfo, viewMatrix, index, texturePositionArray, textureDataArray, matrixArray, opacityArray){
+        _getTileData(tile, tiledImage, textureInfo, viewMatrix, index, texturePositionArray, textureDataArray, matrixArray, opacityArray) {
 
             const texture = textureInfo.texture;
             const textureQuad = textureInfo.position;
@@ -588,14 +727,14 @@
         }
 
         // private
-        _textureFilter(){
+        _textureFilter() {
             return this._imageSmoothingEnabled ? this._gl.LINEAR : this._gl.NEAREST;
         }
 
         // private
-        _setupRenderer(){
+        _setupRenderer() {
             const gl = this._gl;
-            if(!gl){
+            if (!gl) {
                 $.console.error('_setupCanvases must be called before _setupRenderer');
             }
             this._unitQuad = this._makeQuadVertexBuffer(0, 1, 0, 1); // used a few places; create once and store the result
@@ -629,7 +768,7 @@
         }
 
         //private
-        _makeFirstPassShaderProgram(){
+        _makeFirstPassShaderProgram() {
             const numTextures = this._glNumTextures = this._gl.getParameter(this._gl.MAX_TEXTURE_IMAGE_UNITS);
             const makeMatrixUniforms = () => {
                 return [...Array(numTextures).keys()].map(index => `uniform mat3 u_matrix_${index};`).join('\n');
@@ -694,7 +833,7 @@
                 aOutputPosition: gl.getAttribLocation(program, 'a_output_position'),
                 aTexturePosition: gl.getAttribLocation(program, 'a_texture_position'),
                 aIndex: gl.getAttribLocation(program, 'a_index'),
-                uTransformMatrices: [...Array(this._glNumTextures).keys()].map(i=>gl.getUniformLocation(program, `u_matrix_${i}`)),
+                uTransformMatrices: [...Array(this._glNumTextures).keys()].map(i => gl.getUniformLocation(program, `u_matrix_${i}`)),
                 uImages: gl.getUniformLocation(program, 'u_images'),
                 uOpacities: gl.getUniformLocation(program, 'u_opacities'),
                 bufferOutputPosition: gl.createBuffer(),
@@ -706,7 +845,7 @@
 
             // provide coordinates for the rectangle in output space, i.e. a unit quad for each one.
             const outputQuads = new Float32Array(numTextures * 12);
-            for(let i = 0; i < numTextures; ++i){
+            for (let i = 0; i < numTextures; ++i) {
                 outputQuads.set(Float32Array.from(this._unitQuad), i * 12);
             }
             gl.bindBuffer(gl.ARRAY_BUFFER, this._firstPass.bufferOutputPosition);
@@ -726,7 +865,7 @@
         }
 
         // private
-        _makeSecondPassShaderProgram(){
+        _makeSecondPassShaderProgram() {
             const vertexShaderProgram = `
             attribute vec2 a_output_position;
             attribute vec2 a_texture_position;
@@ -753,9 +892,40 @@
             // the opacity multiplier for the image
             uniform float u_opacity_multiplier;
 
+            // color adjustment uniforms
+            uniform float u_gamma;
+            uniform float u_contrast;
+            uniform float u_brightness;
+            uniform float u_r;
+            uniform float u_g;
+            uniform float u_b;
+
             void main() {
-                gl_FragColor = texture2D(u_image, v_texture_position);
-                gl_FragColor *= u_opacity_multiplier;
+                vec4 color = texture2D(u_image, v_texture_position);
+
+                // Convert to 0-255 range for processing (matching the CPU algorithm)
+                vec3 pixel = color.rgb * 255.0;
+
+                // Apply gamma correction first (matching gammaTable lookup)
+                pixel = pow(pixel / 255.0, vec3(1.0 / u_gamma)) * 255.0;
+
+                // Apply contrast around 128 midpoint (matching CPU algorithm)
+                float contrastMultiplier = (100.0 + u_contrast) / 100.0;
+                pixel = (pixel - 128.0) * contrastMultiplier + 128.0;
+
+                // Apply brightness (direct addition, matching CPU algorithm)
+                pixel += u_brightness;
+
+                // Apply RGB channel adjustments (matching adjustChannel function)
+                pixel.r *= (1.0 + u_r / 100.0);
+                pixel.g *= (1.0 + u_g / 100.0);
+                pixel.b *= (1.0 + u_b / 100.0);
+
+                // Clamp to 0-255 range and convert back to 0-1
+                pixel = clamp(pixel, 0.0, 255.0);
+                color.rgb = pixel / 255.0;
+
+                gl_FragColor = color * u_opacity_multiplier;
             }
             `;
 
@@ -771,6 +941,12 @@
                 aTexturePosition: gl.getAttribLocation(program, 'a_texture_position'),
                 uImage: gl.getUniformLocation(program, 'u_image'),
                 uOpacityMultiplier: gl.getUniformLocation(program, 'u_opacity_multiplier'),
+                uGamma: gl.getUniformLocation(program, 'u_gamma'),
+                uContrast: gl.getUniformLocation(program, 'u_contrast'),
+                uBrightness: gl.getUniformLocation(program, 'u_brightness'),
+                uR: gl.getUniformLocation(program, 'u_r'),
+                uG: gl.getUniformLocation(program, 'u_g'),
+                uB: gl.getUniformLocation(program, 'u_b'),
                 bufferOutputPosition: gl.createBuffer(),
                 bufferTexturePosition: gl.createBuffer(),
             };
@@ -788,7 +964,7 @@
         }
 
         // private
-        _resizeRenderer(){
+        _resizeRenderer() {
             const gl = this._gl;
             const w = this._renderingCanvas.width;
             const h = this._renderingCanvas.height;
@@ -811,7 +987,7 @@
         }
 
         // private
-        _setupCanvases(){
+        _setupCanvases() {
             const _this = this;
 
             this._outputCanvas = this.canvas; //output canvas
@@ -826,16 +1002,16 @@
 
             this._gl = this._renderingCanvas.getContext('webgl');
 
-            this._resizeHandler = function(){
+            this._resizeHandler = function () {
 
-                if(_this._outputCanvas !== _this.viewer.drawer.canvas){
+                if (_this._outputCanvas !== _this.viewer.drawer.canvas) {
                     _this._outputCanvas.style.width = _this.viewer.drawer.canvas.clientWidth + 'px';
                     _this._outputCanvas.style.height = _this.viewer.drawer.canvas.clientHeight + 'px';
                 }
 
                 const viewportSize = _this._calculateCanvasSize();
-                if( _this._outputCanvas.width !== viewportSize.x ||
-                    _this._outputCanvas.height !== viewportSize.y ) {
+                if (_this._outputCanvas.width !== viewportSize.x ||
+                    _this._outputCanvas.height !== viewportSize.y) {
                     _this._outputCanvas.width = viewportSize.x;
                     _this._outputCanvas.height = viewportSize.y;
                 }
@@ -867,7 +1043,7 @@
             }
 
             if (!tiledImage.isTainted()) {
-                if (isCanvas && $.isCanvasTainted(data)){
+                if (isCanvas && $.isCanvasTainted(data)) {
                     tiledImage.setTainted(true);
                     $.console.warn('WebGL cannot be used to draw this TiledImage because it has tainted data. Does crossOriginPolicy need to be set?');
                     this._raiseDrawerErrorEvent(tiledImage, 'Tainted data cannot be used by the WebGLDrawer. Falling back to CanvasDrawer for this TiledImage.');
@@ -886,7 +1062,7 @@
                     texture = gl.createTexture();
                     const overlap = tiledImage.source.tileOverlap;
                     const overlapFraction = this._calculateOverlapFraction(tile, tiledImage);
-                    if( overlap > 0){
+                    if (overlap > 0) {
                         // calculate the normalized position of the rect to actually draw
                         // discarding overlap.
                         const left = (tile.x === 0 ? 0 : overlapFraction.x) * sourceWidthFraction;
@@ -919,7 +1095,7 @@
                             position: position,
                             overlapFraction: overlapFraction
                         };
-                    } catch (e){
+                    } catch (e) {
                         // Todo a bit dirty re-use of the tainted flag, but makes the code more stable
                         tiledImage.setTainted(true);
                         $.console.error('Error uploading image data to WebGL. Falling back to canvas renderer.', e);
@@ -929,11 +1105,11 @@
                 }
             }
             if (data instanceof Image) {
-                const canvas = document.createElement( 'canvas' );
+                const canvas = document.createElement('canvas');
                 canvas.width = data.width;
                 canvas.height = data.height;
                 const context = canvas.getContext('2d', { willReadFrequently: true });
-                context.drawImage( data, 0, 0 );
+                context.drawImage(data, 0, 0);
                 data = context;
             }
             if (data instanceof CanvasRenderingContext2D) {
@@ -951,7 +1127,7 @@
         }
 
         // private
-        _makeQuadVertexBuffer(left, right, top, bottom){
+        _makeQuadVertexBuffer(left, right, top, bottom) {
             return new Float32Array([
                 left, bottom,
                 right, bottom,
@@ -962,11 +1138,11 @@
         }
 
         // private
-        _calculateOverlapFraction(tile, tiledImage){
+        _calculateOverlapFraction(tile, tiledImage) {
             const overlap = tiledImage.source.tileOverlap;
             const nativeWidth = tile.sourceBounds.width; // in pixels
             const nativeHeight = tile.sourceBounds.height; // in pixels
-            const overlapWidth  = (tile.x === 0 ? 0 : overlap) + (tile.isRightMost ? 0 : overlap); // in pixels
+            const overlapWidth = (tile.x === 0 ? 0 : overlap) + (tile.isRightMost ? 0 : overlap); // in pixels
             const overlapHeight = (tile.y === 0 ? 0 : overlap) + (tile.isBottomMost ? 0 : overlap); // in pixels
             const widthOverlapFraction = overlap / (nativeWidth + overlapWidth); // as a fraction of image including overlap
             const heightOverlapFraction = overlap / (nativeHeight + overlapHeight); // as a fraction of image including overlap
@@ -976,29 +1152,29 @@
             };
         }
 
-        _setClip(){
+        _setClip() {
             // no-op: called by _renderToClippingCanvas when tiledImage._clip is truthy
             // so that tests will pass.
         }
 
         // private
-        _renderToClippingCanvas(item){
+        _renderToClippingCanvas(item) {
 
             this._clippingContext.clearRect(0, 0, this._clippingCanvas.width, this._clippingCanvas.height);
             this._clippingContext.save();
-            if(this.viewer.viewport.getFlip()){
+            if (this.viewer.viewport.getFlip()) {
                 const point = new $.Point(this.canvas.width / 2, this.canvas.height / 2);
                 this._clippingContext.translate(point.x, 0);
                 this._clippingContext.scale(-1, 1);
                 this._clippingContext.translate(-point.x, 0);
             }
 
-            if(item._clip){
+            if (item._clip) {
                 const polygon = [
-                    {x: item._clip.x, y: item._clip.y},
-                    {x: item._clip.x + item._clip.width, y: item._clip.y},
-                    {x: item._clip.x + item._clip.width, y: item._clip.y + item._clip.height},
-                    {x: item._clip.x, y: item._clip.y + item._clip.height},
+                    { x: item._clip.x, y: item._clip.y },
+                    { x: item._clip.x + item._clip.width, y: item._clip.y },
+                    { x: item._clip.x + item._clip.width, y: item._clip.y + item._clip.height },
+                    { x: item._clip.x, y: item._clip.y + item._clip.height },
                 ];
                 const clipPoints = polygon.map(coord => {
                     const point = item.imageToViewportCoordinates(coord.x, coord.y, true)
@@ -1007,13 +1183,13 @@
                     return clipPoint;
                 });
                 this._clippingContext.beginPath();
-                clipPoints.forEach( (coord, i) => {
+                clipPoints.forEach((coord, i) => {
                     this._clippingContext[i === 0 ? 'moveTo' : 'lineTo'](coord.x, coord.y);
                 });
                 this._clippingContext.clip();
                 this._setClip();
             }
-            if(item._croppingPolygons){
+            if (item._croppingPolygons) {
                 const polygons = item._croppingPolygons.map(polygon => {
                     return polygon.map(coord => {
                         const point = item.imageToViewportCoordinates(coord.x, coord.y, true)
@@ -1024,14 +1200,14 @@
                 });
                 this._clippingContext.beginPath();
                 polygons.forEach((polygon) => {
-                    polygon.forEach( (coord, i) => {
+                    polygon.forEach((coord, i) => {
                         this._clippingContext[i === 0 ? 'moveTo' : 'lineTo'](coord.x, coord.y);
                     });
                 });
                 this._clippingContext.clip();
             }
 
-            if(this.viewer.viewport.getFlip()){
+            if (this.viewer.viewport.getFlip()) {
                 const point = new $.Point(this.canvas.width / 2, this.canvas.height / 2);
                 this._clippingContext.translate(point.x, 0);
                 this._clippingContext.scale(-1, 1);
@@ -1085,8 +1261,8 @@
         _flip(options) {
             options = options || {};
             const point = options.point ?
-            options.point.times($.pixelDensityRatio) :
-            this._getCanvasCenter();
+                options.point.times($.pixelDensityRatio) :
+                this._getCanvasCenter();
             const context = this._outputContext;
 
             context.translate(point.x, 0);
@@ -1095,13 +1271,13 @@
         }
 
         // private
-        _drawDebugInfo( tilesToDraw, tiledImage, flipped ) {
+        _drawDebugInfo(tilesToDraw, tiledImage, flipped) {
 
-            for ( let i = tilesToDraw.length - 1; i >= 0; i-- ) {
-                const tile = tilesToDraw[ i ].tile;
+            for (let i = tilesToDraw.length - 1; i >= 0; i--) {
+                const tile = tilesToDraw[i].tile;
                 try {
                     this._drawDebugInfoOnTile(tile, tilesToDraw.length, i, tiledImage, flipped);
-                } catch(e) {
+                } catch (e) {
                     $.console.error(e);
                 }
             }
@@ -1120,8 +1296,8 @@
 
             this._setRotations(tiledImage);
 
-            if(flipped){
-                this._flip({point: tile.position.plus(tile.size.divide(2))});
+            if (flipped) {
+                this._flip({ point: tile.position.plus(tile.size.divide(2)) });
             }
 
             context.strokeRect(
@@ -1135,12 +1311,12 @@
             const tileCenterY = (tile.position.y + (tile.size.y / 2)) * $.pixelDensityRatio;
 
             // Rotate the text the right way around.
-            context.translate( tileCenterX, tileCenterY );
+            context.translate(tileCenterX, tileCenterY);
             const angleInDegrees = this.viewport.getRotation(true);
-            context.rotate( Math.PI / 180 * -angleInDegrees );
-            context.translate( -tileCenterX, -tileCenterY );
+            context.rotate(Math.PI / 180 * -angleInDegrees);
+            context.translate(-tileCenterX, -tileCenterY);
 
-            if( tile.x === 0 && tile.y === 0 ){
+            if (tile.x === 0 && tile.y === 0) {
                 context.fillText(
                     "Zoom: " + this.viewport.getZoom(),
                     tile.position.x * $.pixelDensityRatio,
@@ -1183,7 +1359,7 @@
                 (tile.position.y + 70) * $.pixelDensityRatio
             );
 
-            if (this.viewport.getRotation(true) % 360 !== 0 ) {
+            if (this.viewport.getRotation(true) % 360 !== 0) {
                 this._restoreRotationChanges();
             }
             if (tiledImage.getRotation(true) % 360 !== 0) {
@@ -1193,21 +1369,21 @@
             context.restore();
         }
 
-        _drawPlaceholder(tiledImage){
+        _drawPlaceholder(tiledImage) {
 
             const bounds = tiledImage.getBounds(true);
             const rect = this.viewportToDrawerRectangle(tiledImage.getBounds(true));
             const context = this._outputContext;
 
             let fillStyle;
-            if ( typeof tiledImage.placeholderFillStyle === "function" ) {
+            if (typeof tiledImage.placeholderFillStyle === "function") {
                 fillStyle = tiledImage.placeholderFillStyle(tiledImage, context);
             }
             else {
                 fillStyle = tiledImage.placeholderFillStyle;
             }
 
-            this._offsetForRotation({degrees: this.viewer.viewport.getRotation(true)});
+            this._offsetForRotation({ degrees: this.viewer.viewport.getRotation(true) });
             context.fillStyle = fillStyle;
             context.translate(rect.x, rect.y);
             context.rotate(Math.PI / 180 * bounds.degrees);
@@ -1272,12 +1448,12 @@
             // If creating the shader program failed, alert
 
             if (!gl.getProgramParameter(shaderProgram, gl.LINK_STATUS)) {
-            $.console.error(
-                `Unable to initialize the shader program: ${gl.getProgramInfoLog(
-                shaderProgram
-                )}`
-            );
-            return null;
+                $.console.error(
+                    `Unable to initialize the shader program: ${gl.getProgramInfoLog(
+                        shaderProgram
+                    )}`
+                );
+                return null;
             }
 
             return shaderProgram;
@@ -1285,4 +1461,4 @@
     };
 
 
-}( OpenSeadragon ));
+}(OpenSeadragon));
