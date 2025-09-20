@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>SdpcRtc WebRTC TileSource Integration Example</title>
+    <script type="text/javascript" src="build/openseadragon/openseadragon.js"></script>
+    <script type="text/javascript" src="webrtc-tilesource.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        
+        .container {
+            display: flex;
+            gap: 20px;
+        }
+        
+        .viewer-container {
+            width: 800px;
+            height: 600px;
+            border: 1px solid #ccc;
+        }
+        
+        .controls {
+            width: 300px;
+        }
+        
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+            background-color: #f0f0f0;
+        }
+        
+        .status.connected {
+            background-color: #d4edda;
+            color: #155724;
+        }
+        
+        .status.error {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+        
+        .log {
+            height: 200px;
+            overflow-y: auto;
+            border: 1px solid #ccc;
+            padding: 10px;
+            font-family: monospace;
+            font-size: 12px;
+            background-color: #f8f9fa;
+        }
+        
+        button {
+            padding: 8px 16px;
+            margin: 5px;
+            border: none;
+            border-radius: 4px;
+            background-color: #007bff;
+            color: white;
+            cursor: pointer;
+        }
+        
+        button:hover {
+            background-color: #0056b3;
+        }
+        
+        button:disabled {
+            background-color: #6c757d;
+            cursor: not-allowed;
+        }
+        
+        .config {
+            margin: 10px 0;
+            padding: 10px;
+            background-color: #e9ecef;
+            border-radius: 4px;
+        }
+        
+        .config input {
+            width: 100%;
+            margin: 5px 0;
+            padding: 5px;
+            border: 1px solid #ccc;
+            border-radius: 3px;
+        }
+    </style>
+</head>
+<body>
+    <h1>SdpcRtc WebRTC TileSource 集成示例</h1>
+    <p>演示如何使用 SdpcRtc 与 WebRTC TileSource 组件集成</p>
+    
+    <div class="container">
+        <div>
+            <div id="viewer" class="viewer-container"></div>
+        </div>
+        
+        <div class="controls">
+            <h3>SdpcRtc 配置</h3>
+            
+            <div class="config">
+                <label>WebSocket URL:</label>
+                <input type="text" id="wsUrl" value="ws://192.168.10.204:8810" />
+                
+                <label>实例ID:</label>
+                <input type="text" id="instanceId" value="202204071103" />
+                
+                <label>通道名称:</label>
+                <input type="text" id="channelName" value="default_channel" />
+            </div>
+            
+            <div id="status" class="status">
+                状态: 未连接
+            </div>
+            
+            <button id="connectBtn" onclick="connectSdpcRtc()">连接 SdpcRtc</button>
+            <button id="disconnectBtn" onclick="disconnect()" disabled>断开连接</button>
+            
+            <h4>日志</h4>
+            <div id="log" class="log"></div>
+            <button onclick="clearLog()">清空日志</button>
+        </div>
+    </div>
+
+    <script>
+        // 全局变量
+        let viewer = null;
+        let webrtcTileSource = null;
+        let sdpcRtc = null;
+        let isConnected = false;
+
+        // 模拟 SdpcRtc 类（实际使用时请替换为真实的 SdpcRtc）
+        class MockSdpcRtc {
+            constructor(config) {
+                this.config = config;
+                this.channelName = null;
+                this.receiveCallback = null;
+                this.isConnected = false;
+            }
+
+            // 模拟连接
+            connect() {
+                return new Promise((resolve) => {
+                    setTimeout(() => {
+                        this.isConnected = true;
+                        log('SdpcRtc 连接成功');
+                        resolve();
+                    }, 1000);
+                });
+            }
+
+            // 模拟发送切片请求
+            refreshSlice(channelName, data) {
+                if (!this.isConnected) {
+                    throw new Error('SdpcRtc not connected');
+                }
+
+                log(`发送 refreshSlice: ${data.Method} L${data.Params.Level} X${data.Params.X} Y${data.Params.Y}`);
+
+                // 模拟异步响应
+                setTimeout(() => {
+                    const mockBase64 = this.generateMockTileBase64(
+                        data.Params.Level,
+                        data.Params.X,
+                        data.Params.Y
+                    );
+
+                    const responseData = {
+                        data: {
+                            sliceId: `${data.Params.Level}_${data.Params.X}_${data.Params.Y}`,
+                            requestId: `GetTile ${data.Params.Level} ${data.Params.X} ${data.Params.Y}`,
+                            responseCode: 200,
+                            resposeData: mockBase64
+                        }
+                    };
+
+                    if (this.receiveCallback) {
+                        this.receiveCallback({
+                            data: JSON.stringify(responseData)
+                        });
+                    }
+                }, 100 + Math.random() * 300);
+            }
+
+            // 模拟读取切片
+            readSlice(fileInfo, data) {
+                log(`读取切片: ${data.data.sliceId}`);
+                
+                // 模拟处理完成后的响应
+                setTimeout(() => {
+                    if (this.receiveCallback) {
+                        this.receiveCallback({
+                            data: JSON.stringify({
+                                data: {
+                                    requestId: data.data.requestId,
+                                    responseCode: data.data.responseCode,
+                                    resposeData: data.data.resposeData
+                                }
+                            })
+                        });
+                    }
+                }, 50);
+            }
+
+            // 生成模拟瓦片
+            generateMockTileBase64(level, x, y) {
+                const canvas = document.createElement('canvas');
+                canvas.width = 256;
+                canvas.height = 256;
+                const ctx = canvas.getContext('2d');
+                
+                const hue = ((x * 137 + y * 197 + level * 73) % 360);
+                const saturation = 70 + (level * 10) % 30;
+                const lightness = 50 + (x + y) % 30;
+                
+                ctx.fillStyle = `hsl(${hue}, ${saturation}%, ${lightness}%)`;
+                ctx.fillRect(0, 0, 256, 256);
+                
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+                ctx.lineWidth = 1;
+                for (let i = 0; i <= 256; i += 32) {
+                    ctx.beginPath();
+                    ctx.moveTo(i, 0);
+                    ctx.lineTo(i, 256);
+                    ctx.stroke();
+                    
+                    ctx.beginPath();
+                    ctx.moveTo(0, i);
+                    ctx.lineTo(256, i);
+                    ctx.stroke();
+                }
+                
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
+                ctx.font = '16px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText(`L${level}`, 128, 128);
+                ctx.fillText(`X${x} Y${y}`, 128, 148);
+                
+                return canvas.toDataURL('image/png').split(',')[1];
+            }
+
+            disconnect() {
+                this.isConnected = false;
+                log('SdpcRtc 连接已断开');
+            }
+        }
+
+        // 模拟文件信息
+        const files = {};
+
+        // 日志函数
+        function log(message) {
+            const logElement = document.getElementById('log');
+            const timestamp = new Date().toLocaleTimeString();
+            logElement.innerHTML += `[${timestamp}] ${message}<br>`;
+            logElement.scrollTop = logElement.scrollHeight;
+            console.log(message);
+        }
+
+        function clearLog() {
+            document.getElementById('log').innerHTML = '';
+        }
+
+        // 更新状态
+        function updateStatus(message, type = 'normal') {
+            const statusElement = document.getElementById('status');
+            statusElement.textContent = `状态: ${message}`;
+            statusElement.className = `status ${type}`;
+        }
+
+        // 连接 SdpcRtc
+        async function connectSdpcRtc() {
+            const wsUrl = document.getElementById('wsUrl').value;
+            const instanceId = document.getElementById('instanceId').value;
+            const channelName = document.getElementById('channelName').value;
+
+            log('开始连接 SdpcRtc...');
+            updateStatus('连接中...', 'normal');
+            
+            document.getElementById('connectBtn').disabled = true;
+
+            try {
+                // 创建 SdpcRtc 实例（这里使用模拟类，实际使用时请替换）
+                sdpcRtc = new MockSdpcRtc({
+                    wsUrl: wsUrl,
+                    instanceId: instanceId,
+                    role: 'Sqray' // 对应 SdpcRtcRole.Sqray
+                });
+
+                // 设置接收回调
+                sdpcRtc.receiveCallback = (pack) => {
+                    const data = JSON.parse(pack.data);
+                    log(`收到响应: ${JSON.stringify(data.data)}`);
+                    
+                    // 如果有 sliceId，说明需要读取切片
+                    if (data.data.sliceId) {
+                        // 模拟文件信息
+                        files[data.data.sliceId] = { name: `tile_${data.data.sliceId}.jpg` };
+                        sdpcRtc.readSlice(files[data.data.sliceId], data);
+                    } else if (webrtcTileSource) {
+                        // 直接处理响应
+                        webrtcTileSource.handleResponse(data.data);
+                    }
+                };
+
+                // 连接
+                await sdpcRtc.connect();
+                
+                isConnected = true;
+                updateStatus('已连接', 'connected');
+                
+                document.getElementById('disconnectBtn').disabled = false;
+                
+                // 初始化 OpenSeadragon viewer
+                initializeViewer(channelName);
+                
+            } catch (error) {
+                log(`连接失败: ${error.message}`);
+                updateStatus('连接失败', 'error');
+                document.getElementById('connectBtn').disabled = false;
+            }
+        }
+
+        // 断开连接
+        function disconnect() {
+            isConnected = false;
+            
+            if (sdpcRtc) {
+                sdpcRtc.disconnect();
+                sdpcRtc = null;
+            }
+            
+            updateStatus('已断开', 'error');
+            
+            document.getElementById('connectBtn').disabled = false;
+            document.getElementById('disconnectBtn').disabled = true;
+            
+            if (webrtcTileSource) {
+                webrtcTileSource.clearPendingRequests();
+            }
+            
+            if (viewer) {
+                viewer.destroy();
+                viewer = null;
+            }
+            
+            document.getElementById('viewer').innerHTML = '';
+        }
+
+        // 初始化 OpenSeadragon viewer
+        function initializeViewer(channelName) {
+            log('初始化 OpenSeadragon viewer...');
+            
+            const tileSourceConfig = {
+                type: 'webrtc',
+                width: 2048,
+                height: 2048,
+                tileSize: 256,
+                tileOverlap: 0,
+                minLevel: 0,
+                maxLevel: 6,
+                sdpcId: document.getElementById('instanceId').value,
+                requestTimeout: 10000,
+                sdpcRtc: sdpcRtc,
+                channelName: channelName,
+                onRequest: function(requestData) {
+                    log(`📤 发送请求: ${requestData.Method} L${requestData.Params.Level} X${requestData.Params.X} Y${requestData.Params.Y}`);
+                },
+                onResponse: function(responseData, request) {
+                    const duration = Date.now() - request.timestamp;
+                    log(`📥 收到响应: ${responseData.requestId}, 耗时: ${duration}ms`);
+                },
+                onError: function(error) {
+                    log(`❌ 错误: ${error}`);
+                }
+            };
+
+            viewer = OpenSeadragon({
+                id: 'viewer',
+                prefixUrl: 'build/openseadragon/images/',
+                showNavigator: true,
+                navigatorPosition: 'TOP_RIGHT'
+            });
+
+            viewer.addTiledImage({
+                tileSource: tileSourceConfig,
+                success: function(event) {
+                    webrtcTileSource = event.item.source;
+                    log('WebRTC TileSource 加载成功');
+                },
+                error: function(event) {
+                    log('WebRTC TileSource 加载失败: ' + event.message);
+                }
+            });
+        }
+
+        // 页面加载完成
+        document.addEventListener('DOMContentLoaded', function() {
+            log('页面加载完成，准备连接 SdpcRtc');
+            updateStatus('未连接', 'normal');
+        });
+    </script>
+</body>
+</html>
